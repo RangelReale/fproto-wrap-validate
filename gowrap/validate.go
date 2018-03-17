@@ -62,9 +62,10 @@ func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 			g.F(c.FileId).In()
 			g.F(c.FileId).P("var err error")
 			for _, fld := range msg.Fields {
+				fldGoName, _ := g.BuildFieldName(fld)
+
 				ftc, opt, fval := vinfo.IsFieldValidate(fld)
 				if fval {
-					fldGoName, _ := g.BuildFieldName(fld)
 
 					check_err, err := ftc.GenerateValidation(g.F(c.FileId), fdep.NewDepTypeFromElement(g.GetFileDep(), fld), opt, "m."+fldGoName, "err")
 					if err != nil {
@@ -73,6 +74,54 @@ func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 					if check_err {
 						g.F(c.FileId).GenerateErrorCheck("")
 					}
+				} else {
+					// check for file type imports
+					switch xfld := fld.(type) {
+					case *fproto.FieldElement:
+						fdt, err := m.GetType(xfld.Type)
+						if err != nil {
+							return err
+						}
+
+						if vinfo.TypeHasValidation(fdt) {
+							// err = MyFieldStruct.Validate()
+
+							fieldname := "m." + fldGoName
+							if xfld.Repeated {
+								g.F(c.FileId).P("for _, ms := range m.", fldGoName, " {")
+								g.F(c.FileId).In()
+								fieldname = "ms"
+							}
+
+							g.F(c.FileId).P("if ", fieldname, " != nil {")
+							g.F(c.FileId).In()
+
+							g.F(c.FileId).P("err = ", fieldname, ".Validate()")
+							g.F(c.FileId).GenerateErrorCheck("")
+
+							g.F(c.FileId).Out()
+							g.F(c.FileId).P("}")
+
+							if xfld.Repeated {
+								g.F(c.FileId).Out()
+								g.F(c.FileId).P("}")
+							}
+
+						}
+					case *fproto.MapFieldElement:
+						fdt, err := m.GetType(xfld.Type)
+						if err != nil {
+							return err
+						}
+						if vinfo.TypeHasValidation(fdt) {
+							// err = MyFieldStruct.Validate()
+							g.F(c.FileId).P("err = m.", fldGoName, ".Validate()")
+							g.F(c.FileId).GenerateErrorCheck("")
+						}
+					case *fproto.OneofFieldElement:
+						// TODO
+					}
+
 				}
 			}
 			g.F(c.FileId).P("return err")
