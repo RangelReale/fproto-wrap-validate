@@ -8,7 +8,7 @@ import (
 
 type TypeValidatorPlugin interface {
 	// Returns a type validator for the type
-	GetTypeConverter(validatorType *fdep.OptionType) TypeValidator
+	GetTypeValidator(validatorType *fdep.OptionType) TypeValidator
 
 	ValidatorPrefixes() []string
 }

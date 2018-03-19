@@ -28,7 +28,7 @@ func NewCustomizer_Validate_Custom() *Customizer_Validate {
 
 func (c *Customizer_Validate) GetValidator(validatorType *fdep.OptionType) TypeValidator {
 	for _, tcp := range c.TypeValidators {
-		tc := tcp.GetTypeConverter(validatorType)
+		tc := tcp.GetTypeValidator(validatorType)
 		if tc != nil {
 			return tc
 		}
@@ -41,6 +41,333 @@ func (c *Customizer_Validate) GetTag(g *fproto_gowrap.Generator, currentTag *fpr
 }
 
 func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
+	var validate_elements []fproto.FProtoElement
+
+	if g.GetFileDep().ProtoFile != nil {
+		for _, msg := range g.GetFileDep().ProtoFile.CollectMessages() {
+			fhas, err := c.TypeHasValidator(g, msg)
+			if err != nil {
+				return err
+			}
+
+			if fhas {
+				validate_elements = append(validate_elements, msg)
+			}
+		}
+	}
+
+	if len(validate_elements) > 0 {
+		g.F(c.FileId).P("//")
+		g.F(c.FileId).P("// VALIDATION")
+		g.F(c.FileId).P("//")
+		g.F(c.FileId).P()
+
+		for _, ve := range validate_elements {
+			err := c.generateValidationForElement(g, ve)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *Customizer_Validate) generateValidationForElement(g *fproto_gowrap.Generator, element fproto.FProtoElement) error {
+	msg := element.(*fproto.MessageElement)
+
+	// func (m* MyMessage) Validate() err
+	msgGoName, _, _ := g.BuildMessageName(msg)
+
+	g.F(c.FileId).P("func (m *", msgGoName, ") Validate() error {")
+	g.F(c.FileId).In()
+	g.F(c.FileId).P("var err error")
+	for _, fld := range msg.Fields {
+		fldGoName, _ := g.BuildFieldName(fld)
+
+		// check if the field itself has validators
+		fvals, err := c.FieldGetValidators(g, msg, fld)
+		if err != nil {
+			return err
+		}
+
+		if len(fvals) > 0 {
+			for _, fval := range fvals {
+				check_err, err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), fdep.NewDepTypeFromElement(g.GetFileDep(), fld), fval.Option, "m."+fldGoName, "err")
+				if err != nil {
+					return err
+				}
+				if check_err {
+					g.F(c.FileId).GenerateErrorCheck("")
+				}
+			}
+		}
+
+		// check if the field type has validation
+		fhas, err := c.FieldTypeHasValidator(g, msg, fld)
+
+		if fhas {
+			// err = MyFieldStruct.Validate()
+
+			switch xfld := fld.(type) {
+			case *fproto.FieldElement:
+				// err = MyFieldStruct.Validate()
+				fieldname := "m." + fldGoName
+				if xfld.Repeated {
+					g.F(c.FileId).P("for _, ms := range m.", fldGoName, " {")
+					g.F(c.FileId).In()
+					fieldname = "ms"
+				}
+
+				g.F(c.FileId).P("if ", fieldname, " != nil {")
+				g.F(c.FileId).In()
+
+				g.F(c.FileId).P("err = ", fieldname, ".Validate()")
+				g.F(c.FileId).GenerateErrorCheck("")
+
+				g.F(c.FileId).Out()
+				g.F(c.FileId).P("}")
+
+				if xfld.Repeated {
+					g.F(c.FileId).Out()
+					g.F(c.FileId).P("}")
+				}
+			case *fproto.MapFieldElement:
+				g.F(c.FileId).P("for msidx, ms := range s.", fldGoName, " {")
+				g.F(c.FileId).In()
+
+				g.F(c.FileId).P("err = ms.Validate()")
+				g.F(c.FileId).GenerateErrorCheck("")
+
+				g.F(c.FileId).Out()
+				g.F(c.FileId).P("}")
+			case *fproto.OneOfFieldElement:
+				// TODO
+			}
+		}
+	}
+
+	g.F(c.FileId).P("return err")
+	g.F(c.FileId).Out()
+	g.F(c.FileId).P("}")
+	g.F(c.FileId).P()
+
+	return nil
+}
+
+func (c *Customizer_Validate) TypeHasValidator(g *fproto_gowrap.Generator, element fproto.FProtoElement) (bool, error) {
+	// Check if any field of this type has a known validation type
+	var fields []fproto.FieldElementTag
+
+	switch xele := element.(type) {
+	case *fproto.MessageElement:
+		fields = xele.Fields
+	case *fproto.OneOfFieldElement:
+		fields = xele.Fields
+	}
+
+	for _, fld := range fields {
+		fhas, err := c.FieldHasValidator(g, element, fld)
+		if err != nil {
+			return false, err
+		}
+		if fhas {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+type fieldValidator struct {
+	TypeValidator TypeValidator
+	Option        *fproto.OptionElement
+}
+
+func (c *Customizer_Validate) FieldGetValidators(g *fproto_gowrap.Generator, parentElement fproto.FProtoElement, field fproto.FieldElementTag) ([]*fieldValidator, error) {
+	var ret []*fieldValidator
+
+	var options []*fproto.OptionElement
+
+	switch xfld := field.(type) {
+	case *fproto.FieldElement:
+		options = xfld.Options
+	case *fproto.MapFieldElement:
+		options = xfld.Options
+	case *fproto.OneOfFieldElement:
+		options = xfld.Options
+	}
+
+	for _, o := range options {
+		tv, err := c.OptionGetValidator(g, o)
+		if err != nil {
+			return nil, err
+		}
+
+		if tv != nil {
+			ret = append(ret, &fieldValidator{
+				TypeValidator: tv,
+				Option:        o,
+			})
+		}
+	}
+
+	return ret, nil
+}
+
+func (c *Customizer_Validate) FieldHasValidator(g *fproto_gowrap.Generator, parentElement fproto.FProtoElement, field fproto.FieldElementTag) (bool, error) {
+	var options []*fproto.OptionElement
+	var fldType string
+	var checkType fproto.FProtoElement
+
+	switch xfld := field.(type) {
+	case *fproto.FieldElement:
+		options = xfld.Options
+		fldType = xfld.Type
+	case *fproto.MapFieldElement:
+		options = xfld.Options
+		fldType = xfld.Type
+	case *fproto.OneOfFieldElement:
+		options = xfld.Options
+		checkType = xfld
+	}
+
+	for _, o := range options {
+		ohas, err := c.OptionHasValidator(g, o)
+		if err != nil {
+			return false, err
+		}
+
+		if ohas {
+			return true, nil
+		}
+	}
+
+	// check subtype if available (oneof)
+	if checkType != nil {
+		fhas, err := c.TypeHasValidator(g, checkType)
+		if err != nil {
+			return false, err
+		}
+		if fhas {
+			return true, nil
+		}
+	}
+
+	// check if the field type has validators
+	if fldType != "" {
+		parent_dt := g.GetFileDep().Dep.DepTypeFromElement(parentElement)
+		if parent_dt == nil {
+			return false, nil
+		}
+
+		fdt, err := parent_dt.GetType(fldType)
+		if err != nil {
+			return false, err
+		}
+
+		if fdt == nil {
+			return false, err
+		}
+
+		// Prevent recursion
+		if !parent_dt.IsSame(fdt) {
+			if fdt.Item != nil {
+				fhas, err := c.TypeHasValidator(g, fdt.Item)
+				if err != nil {
+					return false, err
+				}
+				if fhas {
+					return true, nil
+				}
+			}
+		}
+	}
+
+	return false, nil
+}
+
+func (c *Customizer_Validate) FieldTypeHasValidator(g *fproto_gowrap.Generator, parentElement fproto.FProtoElement, field fproto.FieldElementTag) (bool, error) {
+	var fldType string
+
+	switch xfld := field.(type) {
+	case *fproto.FieldElement:
+		fldType = xfld.Type
+	case *fproto.MapFieldElement:
+		fldType = xfld.Type
+	case *fproto.OneOfFieldElement:
+	}
+
+	// check if the field type has validators
+	if fldType != "" {
+		parent_dt := g.GetFileDep().Dep.DepTypeFromElement(parentElement)
+		if parent_dt == nil {
+			return false, nil
+		}
+
+		fdt, err := parent_dt.GetType(fldType)
+		if err != nil {
+			return false, err
+		}
+
+		if fdt == nil {
+			return false, err
+		}
+
+		// Prevent recursion
+		if !parent_dt.IsSame(fdt) && !fdt.IsScalar() {
+			return c.TypeHasValidator(g, fdt.Item)
+		}
+	}
+
+	return false, nil
+}
+
+func (c *Customizer_Validate) OptionGetValidator(g *fproto_gowrap.Generator, opt *fproto.OptionElement) (TypeValidator, error) {
+	opttype, err := g.GetDep().GetOption(fdep.FIELD_OPTION, opt.ParenthesizedName)
+	if err != nil {
+		return nil, err
+	}
+
+	if opttype == nil {
+		return nil, nil
+	}
+
+	if tv := c.FindValidatorForOption(opttype); tv != nil {
+		return tv, nil
+	}
+
+	return nil, nil
+}
+
+func (c *Customizer_Validate) OptionHasValidator(g *fproto_gowrap.Generator, opt *fproto.OptionElement) (bool, error) {
+	opttype, err := g.GetDep().GetOption(fdep.FIELD_OPTION, opt.ParenthesizedName)
+	if err != nil {
+		return false, err
+	}
+
+	if opttype == nil {
+		return false, nil
+	}
+
+	if tv := c.FindValidatorForOption(opttype); tv != nil {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (c *Customizer_Validate) FindValidatorForOption(optType *fdep.OptionType) TypeValidator {
+	for _, v := range c.TypeValidators {
+		tv := v.GetTypeValidator(optType)
+		if tv != nil {
+			return tv
+		}
+	}
+	return nil
+}
+
+func (c *Customizer_Validate) GenerateCodeOld2(g *fproto_gowrap.Generator) error {
 	vinfo, err := newvalidateInfo_Default(g, c.TypeValidators)
 	if err != nil {
 		return err
@@ -173,7 +500,7 @@ func (c *Customizer_Validate) GenerateCodeOld(g *fproto_gowrap.Generator) error 
 							return fmt.Errorf("Couldn't find type for option %s", o.ParenthesizedName)
 						}
 
-						typeconv := vp.TypeValidatorPlugin.GetTypeConverter(opttype)
+						typeconv := vp.TypeValidatorPlugin.GetTypeValidator(opttype)
 						if typeconv != nil {
 							found_val[o.ParenthesizedName] = typeconv
 						}

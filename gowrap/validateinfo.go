@@ -82,7 +82,7 @@ func (vi *validateInfo_Default) load() error {
 									return fmt.Errorf("Couldn't find type for option %s", o.ParenthesizedName)
 								}
 
-								typeconv := vp.TypeValidatorPlugin.GetTypeConverter(opttype)
+								typeconv := vp.TypeValidatorPlugin.GetTypeValidator(opttype)
 								if typeconv != nil {
 									vi.used_validators[o.ParenthesizedName] = typeconv
 									has_validator = true

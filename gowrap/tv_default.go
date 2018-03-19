@@ -12,7 +12,7 @@ import (
 type TypeValidatorPlugin_Default struct {
 }
 
-func (tp *TypeValidatorPlugin_Default) GetTypeConverter(validatorType *fdep.OptionType) TypeValidator {
+func (tp *TypeValidatorPlugin_Default) GetTypeValidator(validatorType *fdep.OptionType) TypeValidator {
 	// validate.field
 	if validatorType.Option != nil &&
 		validatorType.Option.FileDep.FilePath == "github.com/RangelReale/fproto-wrap-validate/validate.proto" &&
