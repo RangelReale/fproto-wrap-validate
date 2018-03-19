@@ -118,7 +118,7 @@ func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 							g.F(c.FileId).P("err = m.", fldGoName, ".Validate()")
 							g.F(c.FileId).GenerateErrorCheck("")
 						}
-					case *fproto.OneofFieldElement:
+					case *fproto.OneOfFieldElement:
 						// TODO
 					}
 
@@ -157,7 +157,7 @@ func (c *Customizer_Validate) GenerateCodeOld(g *fproto_gowrap.Generator) error 
 				opt = xfld.Options
 			case *fproto.MapFieldElement:
 				opt = xfld.Options
-			case *fproto.OneofFieldElement:
+			case *fproto.OneOfFieldElement:
 				opt = xfld.Options
 			}
 

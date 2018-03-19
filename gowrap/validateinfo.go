@@ -63,7 +63,7 @@ func (vi *validateInfo_Default) load() error {
 					opt = xfld.Options
 				case *fproto.MapFieldElement:
 					opt = xfld.Options
-				case *fproto.OneofFieldElement:
+				case *fproto.OneOfFieldElement:
 					opt = xfld.Options
 				}
 
@@ -137,7 +137,7 @@ func (vi *validateInfo_Default) load() error {
 						if vi.TypeHasValidation(kfdt) {
 							has_validator = true
 						}
-					case *fproto.OneofFieldElement:
+					case *fproto.OneOfFieldElement:
 						// TODO
 					}
 
@@ -161,7 +161,7 @@ func (vi *validateInfo_Default) IsFieldValidate(field fproto.FieldElementTag) (T
 		opt = xfld.Options
 	case *fproto.MapFieldElement:
 		opt = xfld.Options
-	case *fproto.OneofFieldElement:
+	case *fproto.OneOfFieldElement:
 		opt = xfld.Options
 	}
 
@@ -206,7 +206,7 @@ func (vi *validateInfo_Default) IsFieldTypeValidate(msg *fproto.MessageElement, 
 		if vi.TypeHasValidation(kfdt) {
 			return true, nil
 		}
-	case *fproto.OneofFieldElement:
+	case *fproto.OneOfFieldElement:
 		// TODO
 	}
 	return false, nil
