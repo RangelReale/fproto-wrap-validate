@@ -33,6 +33,21 @@ type TypeValidator_Default struct {
 func (t *TypeValidator_Default) GenerateValidation(g *fproto_gowrap.GeneratorFile, tp *fdep.DepType, option *fproto.OptionElement, varSrc string, varError string) (checkError bool, err error) {
 	errors_alias := g.Dep("errors", "errors")
 
+	/*
+		if !tp.IsScalar() {
+			return false, fmt.Errorf("Validator expected scalar field, got %s", tp.FullOriginalName())
+		}
+	*/
+
+	gwtype, err := g.G().GetGowrapTypeByDepType(tp)
+	if err != nil {
+		return false, err
+	}
+
+	if gwtype.TCID() != fproto_gowrap.TCID_SCALAR {
+		return false, fmt.Errorf("Validator expected scalar field, got %s", tp.FullOriginalName())
+	}
+
 	var opag []string
 	for agn, agv := range option.AggregatedValues {
 		opag = append(opag, fmt.Sprintf("%s=%s", agn, agv.Source))

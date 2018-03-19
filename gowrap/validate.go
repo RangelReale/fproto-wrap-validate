@@ -54,6 +54,19 @@ func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 				validate_elements = append(validate_elements, msg)
 			}
 		}
+
+		for _, oofield := range g.GetFileDep().ProtoFile.CollectFields() {
+			if oof, isoof := oofield.(*fproto.OneOfFieldElement); isoof {
+				fhas, err := c.TypeHasValidator(g, oof)
+				if err != nil {
+					return err
+				}
+
+				if fhas {
+					validate_elements = append(validate_elements, oof)
+				}
+			}
+		}
 	}
 
 	if len(validate_elements) > 0 {
@@ -74,37 +87,77 @@ func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 }
 
 func (c *Customizer_Validate) generateValidationForElement(g *fproto_gowrap.Generator, element fproto.FProtoElement) error {
-	msg := element.(*fproto.MessageElement)
+	switch el := element.(type) {
+	case *fproto.MessageElement:
+		return c.generateValidationForMessageOrOneOf(g, el)
+	case *fproto.OneOfFieldElement:
+		return c.generateValidationForOneOf(g, el)
+	}
+	return nil
+}
 
-	// func (m* MyMessage) Validate() err
-	msgGoName, _, _ := g.BuildMessageName(msg)
+func (c *Customizer_Validate) generateValidationForMessageOrOneOf(g *fproto_gowrap.Generator, element fproto.FProtoElement) error {
+	var eleGoName string
+	var fields []fproto.FieldElementTag
 
-	g.F(c.FileId).P("func (m *", msgGoName, ") Validate() error {")
+	switch el := element.(type) {
+	case *fproto.MessageElement:
+		eleGoName, _, _ = g.BuildMessageName(el)
+		fields = el.Fields
+	case fproto.FieldElementTag:
+		// assume parent is oneof field
+		eleGoName, _, _ = g.BuildOneOfFieldName(el)
+
+		// set the field as itself
+		fields = append(fields, el)
+	}
+
+	tpMsg := fdep.NewDepTypeFromElement(g.GetFileDep(), element)
+
+	// func (m* MyElement) Validate() err
+	g.F(c.FileId).P("func (m *", eleGoName, ") Validate() error {")
+
 	g.F(c.FileId).In()
 	g.F(c.FileId).P("var err error")
-	for _, fld := range msg.Fields {
+	for _, fld := range fields {
 		fldGoName, _ := g.BuildFieldName(fld)
 
 		// check if the field itself has validators
-		fvals, err := c.FieldGetValidators(g, msg, fld)
+		fvals, err := c.FieldGetValidators(g, element, fld)
 		if err != nil {
 			return err
 		}
 
 		if len(fvals) > 0 {
-			for _, fval := range fvals {
-				check_err, err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), fdep.NewDepTypeFromElement(g.GetFileDep(), fld), fval.Option, "m."+fldGoName, "err")
+			var fldType string
+
+			switch xfld := fld.(type) {
+			case *fproto.FieldElement:
+				fldType = xfld.Type
+			case *fproto.MapFieldElement:
+				fldType = xfld.Type
+			}
+
+			if fldType != "" {
+				ftypedt, err := tpMsg.GetType(fldType)
 				if err != nil {
 					return err
 				}
-				if check_err {
-					g.F(c.FileId).GenerateErrorCheck("")
+
+				for _, fval := range fvals {
+					check_err, err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), ftypedt, fval.Option, "m."+fldGoName, "err")
+					if err != nil {
+						return err
+					}
+					if check_err {
+						g.F(c.FileId).GenerateErrorCheck("")
+					}
 				}
 			}
 		}
 
 		// check if the field type has validation
-		fhas, err := c.FieldTypeHasValidator(g, msg, fld)
+		fhas, err := c.FieldTypeHasValidator(g, element, fld)
 
 		if fhas {
 			// err = MyFieldStruct.Validate()
@@ -142,7 +195,7 @@ func (c *Customizer_Validate) generateValidationForElement(g *fproto_gowrap.Gene
 				g.F(c.FileId).Out()
 				g.F(c.FileId).P("}")
 			case *fproto.OneOfFieldElement:
-				// TODO
+				// Will be validated separatelly
 			}
 		}
 	}
@@ -151,6 +204,57 @@ func (c *Customizer_Validate) generateValidationForElement(g *fproto_gowrap.Gene
 	g.F(c.FileId).Out()
 	g.F(c.FileId).P("}")
 	g.F(c.FileId).P()
+
+	return nil
+}
+
+func (c *Customizer_Validate) generateValidationForOneOf(g *fproto_gowrap.Generator, element *fproto.OneOfFieldElement) error {
+	eleGoName, _, _ := g.BuildOneOfName(element)
+
+	var ooFields []fproto.FieldElementTag
+
+	// func MyOneOf_Validate(m MyOneOf) err
+	g.F(c.FileId).P("func ", eleGoName, "_Validate(m ", eleGoName, ") error {")
+
+	g.F(c.FileId).In()
+	g.F(c.FileId).P("var err error")
+	g.F(c.FileId).P()
+	g.F(c.FileId).P("switch me := m.(type) {")
+
+	for _, fld := range element.Fields {
+		fldGoName, _, _ := g.BuildOneOfFieldName(fld)
+
+		// check if the field type has validation
+		fhas, err := c.FieldHasValidator(g, element, fld)
+		if err != nil {
+			return err
+		}
+
+		if fhas {
+			ooFields = append(ooFields, fld)
+
+			// err = MyFieldStruct.Validate()
+			g.F(c.FileId).P("case *", fldGoName, ":")
+
+			g.F(c.FileId).P("err = me.Validate()")
+			g.F(c.FileId).GenerateErrorCheck("")
+		}
+	}
+
+	g.F(c.FileId).P("}")
+	g.F(c.FileId).P()
+
+	g.F(c.FileId).P("return err")
+	g.F(c.FileId).Out()
+	g.F(c.FileId).P("}")
+	g.F(c.FileId).P()
+
+	for _, o := range ooFields {
+		err := c.generateValidationForMessageOrOneOf(g, o)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
