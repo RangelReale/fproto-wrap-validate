@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/RangelReale/fdep"
 	"github.com/RangelReale/fproto"
 	"github.com/RangelReale/fproto-wrap/gowrap"
-	"github.com/RangelReale/fproto/fdep"
 )
 
 type TypeValidatorPlugin_Default struct {

@@ -1,9 +1,9 @@
 package fproto_gowrap_validate
 
 import (
+	"github.com/RangelReale/fdep"
 	"github.com/RangelReale/fproto"
 	"github.com/RangelReale/fproto-wrap/gowrap"
-	"github.com/RangelReale/fproto/fdep"
 )
 
 // Adds a json tag to all struct fields, using snake case formatting
