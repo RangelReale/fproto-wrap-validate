@@ -362,7 +362,7 @@ func (c *Customizer_Validate) FieldHasValidator(g *fproto_gowrap.Generator, pare
 			return false, nil
 		}
 
-		fdt, err := parent_dt.GetType(fldType)
+		fdt, err := parent_dt.FindType(fldType)
 		if err != nil {
 			return false, err
 		}
@@ -406,7 +406,7 @@ func (c *Customizer_Validate) FieldTypeHasValidator(g *fproto_gowrap.Generator, 
 			return false, nil
 		}
 
-		fdt, err := parent_dt.GetType(fldType)
+		fdt, err := parent_dt.FindType(fldType)
 		if err != nil {
 			return false, err
 		}
