@@ -30,7 +30,7 @@ func (tp *TypeValidatorPlugin_Default) ValidatorPrefixes() []string {
 type TypeValidator_Default struct {
 }
 
-func (t *TypeValidator_Default) GenerateValidation(g *fproto_gowrap.GeneratorFile, tp *fdep.DepType, option *fproto.OptionElement, varSrc string, varError string) (checkError bool, err error) {
+func (t *TypeValidator_Default) GenerateValidation(g *fproto_gowrap.GeneratorFile, tp *fdep.DepType, option *fproto.OptionElement, varSrc string, varError string) error {
 	errors_alias := g.DeclDep("errors", "errors")
 
 	/*
@@ -39,24 +39,27 @@ func (t *TypeValidator_Default) GenerateValidation(g *fproto_gowrap.GeneratorFil
 		}
 	*/
 
-	tinfo := g.G().GetTypeInfo(tp)
+	/*
+		tinfo := g.G().GetTypeInfo(tp)
 
-	if tinfo.Converter().TCID() != fproto_gowrap.TCID_SCALAR {
-		return false, fmt.Errorf("Validator expected scalar field, got %s", tp.FullOriginalName())
-	}
+		if tinfo.Converter().TCID() != fproto_gowrap.TCID_SCALAR {
+			return false, fmt.Errorf("Validator expected scalar field, got %s", tp.FullOriginalName())
+		}
+	*/
 
 	var opag []string
 	for agn, agv := range option.AggregatedValues {
 		opag = append(opag, fmt.Sprintf("%s=%s", agn, agv.Source))
 	}
 
-	g.P("// ", option.Name, " -- ", option.ParenthesizedName, " @@ ", option.Value.Source, " %% ", strings.Join(opag, ", "))
+	g.P("// ", option.Name, " -- ", option.ParenthesizedName, " ** ", option.NPName, " @@ ", option.Value.Source, " %% ", strings.Join(opag, ", "))
 
 	g.P("if ", varSrc, " == \"\" {")
 	g.In()
 	g.P("err = ", errors_alias, ".New(\"Cannot be blank\")")
 	g.Out()
 	g.P("}")
+	g.GenerateSimpleErrorCheck()
 
-	return true, nil
+	return nil
 }

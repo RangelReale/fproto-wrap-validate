@@ -95,11 +95,11 @@ func (c *Customizer_Validate) generateValidationForMessageOrOneOf(g *fproto_gowr
 
 	switch el := element.(type) {
 	case *fproto.MessageElement:
-		eleGoName, _, _ = g.BuildMessageName(el)
+		eleGoName, _ = g.BuildMessageName(el)
 		fields = el.Fields
 	case fproto.FieldElementTag:
 		// assume parent is oneof field
-		eleGoName, _, _ = g.BuildOneOfFieldName(el)
+		eleGoName, _ = g.BuildOneOfFieldName(el)
 
 		// set the field as itself
 		fields = append(fields, el)
@@ -138,12 +138,9 @@ func (c *Customizer_Validate) generateValidationForMessageOrOneOf(g *fproto_gowr
 				}
 
 				for _, fval := range fvals {
-					check_err, err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), ftypedt, fval.Option, "m."+fldGoName, "err")
+					err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), ftypedt, fval.Option, "m."+fldGoName, "err")
 					if err != nil {
 						return err
-					}
-					if check_err {
-						g.F(c.FileId).GenerateErrorCheck("")
 					}
 				}
 			}
@@ -202,7 +199,7 @@ func (c *Customizer_Validate) generateValidationForMessageOrOneOf(g *fproto_gowr
 }
 
 func (c *Customizer_Validate) generateValidationForOneOf(g *fproto_gowrap.Generator, element *fproto.OneOfFieldElement) error {
-	eleGoName, _, _ := g.BuildOneOfName(element)
+	eleGoName, _ := g.BuildOneOfName(element)
 
 	var ooFields []fproto.FieldElementTag
 
@@ -215,7 +212,7 @@ func (c *Customizer_Validate) generateValidationForOneOf(g *fproto_gowrap.Genera
 	g.F(c.FileId).P("switch me := m.(type) {")
 
 	for _, fld := range element.Fields {
-		fldGoName, _, _ := g.BuildOneOfFieldName(fld)
+		fldGoName, _ := g.BuildOneOfFieldName(fld)
 
 		// check if the field type has validation
 		fhas, err := c.FieldHasValidator(g, element, fld)
