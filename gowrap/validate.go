@@ -33,10 +33,6 @@ func (c *Customizer_Validate) GetValidator(validatorType *fdep.OptionType) TypeV
 	return nil
 }
 
-func (c *Customizer_Validate) GetTag(g *fproto_gowrap.Generator, currentTag *fproto_gowrap.StructTag, parentItem fproto.FProtoElement, item fproto.FProtoElement) error {
-	return nil
-}
-
 func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 	var validate_elements []fproto.FProtoElement
 

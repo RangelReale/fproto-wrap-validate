@@ -39,12 +39,9 @@ func (t *TypeValidator_Default) GenerateValidation(g *fproto_gowrap.GeneratorFil
 		}
 	*/
 
-	gwtype, err := g.G().GetGowrapTypeByDepType(tp)
-	if err != nil {
-		return false, err
-	}
+	tinfo := g.G().GetTypeInfo(tp)
 
-	if gwtype.TCID() != fproto_gowrap.TCID_SCALAR {
+	if tinfo.Converter().TCID() != fproto_gowrap.TCID_SCALAR {
 		return false, fmt.Errorf("Validator expected scalar field, got %s", tp.FullOriginalName())
 	}
 
