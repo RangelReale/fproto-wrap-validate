@@ -15,8 +15,8 @@ type TypeValidatorPlugin_Default struct {
 func (tp *TypeValidatorPlugin_Default) GetTypeValidator(validatorType *fdep.OptionType) TypeValidator {
 	// validate.field
 	if validatorType.Option != nil &&
-		validatorType.Option.FileDep.FilePath == "github.com/RangelReale/fproto-wrap-validate/validate.proto" &&
-		validatorType.Option.FileDep.ProtoFile.PackageName == "validate" &&
+		validatorType.Option.DepFile.FilePath == "github.com/RangelReale/fproto-wrap-validate/validate.proto" &&
+		validatorType.Option.DepFile.ProtoFile.PackageName == "validate" &&
 		validatorType.Name == "field" {
 		return &TypeValidator_Default{}
 	}

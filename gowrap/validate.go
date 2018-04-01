@@ -36,8 +36,8 @@ func (c *Customizer_Validate) GetValidator(validatorType *fdep.OptionType) TypeV
 func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 	var validate_elements []fproto.FProtoElement
 
-	if g.GetFileDep().ProtoFile != nil {
-		for _, msg := range g.GetFileDep().ProtoFile.CollectMessages() {
+	if g.GetDepFile().ProtoFile != nil {
+		for _, msg := range g.GetDepFile().ProtoFile.CollectMessages() {
 			fhas, err := c.TypeHasValidator(g, msg)
 			if err != nil {
 				return err
@@ -48,7 +48,7 @@ func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 			}
 		}
 
-		for _, oofield := range g.GetFileDep().ProtoFile.CollectFields() {
+		for _, oofield := range g.GetDepFile().ProtoFile.CollectFields() {
 			if oof, isoof := oofield.(*fproto.OneOfFieldElement); isoof {
 				fhas, err := c.TypeHasValidator(g, oof)
 				if err != nil {
@@ -105,7 +105,7 @@ func (c *Customizer_Validate) generateValidationForMessageOrOneOf(g *fproto_gowr
 		fields = append(fields, el)
 	}
 
-	tpMsg := fdep.NewDepTypeFromElement(g.GetFileDep(), element)
+	tpMsg := fdep.NewDepTypeFromElement(g.GetDepFile(), element)
 
 	// func (m* MyElement) Validate() err
 	g.F(c.FileId).P("func (m *", eleGoName, ") Validate() error {")
@@ -353,7 +353,7 @@ func (c *Customizer_Validate) FieldHasValidator(g *fproto_gowrap.Generator, pare
 
 	// check if the field type has validators
 	if fldType != "" {
-		parent_dt := g.GetFileDep().Dep.DepTypeFromElement(parentElement)
+		parent_dt := g.GetDepFile().Dep.DepTypeFromElement(parentElement)
 		if parent_dt == nil {
 			return false, nil
 		}
@@ -397,7 +397,7 @@ func (c *Customizer_Validate) FieldTypeHasValidator(g *fproto_gowrap.Generator, 
 
 	// check if the field type has validators
 	if fldType != "" {
-		parent_dt := g.GetFileDep().Dep.DepTypeFromElement(parentElement)
+		parent_dt := g.GetDepFile().Dep.DepTypeFromElement(parentElement)
 		if parent_dt == nil {
 			return false, nil
 		}
