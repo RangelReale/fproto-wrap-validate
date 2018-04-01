@@ -42,7 +42,7 @@ func (t *TypeValidator_Default) GenerateValidation(g *fproto_gowrap.GeneratorFil
 
 	var tv DefaultTypeValidator
 	for _, tvp := range t.DefaultTypeValidators {
-		if tv = tvp.GetDefaultTypeValidator(tp); tv != nil {
+		if tv = tvp.GetDefaultTypeValidator(tinfo, tp); tv != nil {
 			break
 		}
 	}

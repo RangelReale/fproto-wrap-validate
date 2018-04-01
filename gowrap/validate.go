@@ -137,11 +137,23 @@ func (c *Customizer_Validate) generateValidationForMessageOrOneOf(g *fproto_gowr
 					return err
 				}
 
+				ftypetinfo := g.GetTypeInfo(ftypedt)
+				if ftypetinfo.Converter().IsPointer() {
+					// if m.field != nil
+					g.F(c.FileId).P("if m.", fldGoName, " != nil {")
+					g.F(c.FileId).In()
+				}
+
 				for _, fval := range fvals {
 					err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), ftypedt, fval.Option, "m."+fldGoName, "err")
 					if err != nil {
 						return err
 					}
+				}
+
+				if ftypetinfo.Converter().IsPointer() {
+					g.F(c.FileId).Out()
+					g.F(c.FileId).P("}")
 				}
 			}
 		}

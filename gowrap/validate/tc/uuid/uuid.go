@@ -7,6 +7,7 @@ import (
 	"github.com/RangelReale/fproto"
 	"github.com/RangelReale/fproto-wrap-validate/gowrap/validate"
 	"github.com/RangelReale/fproto-wrap/gowrap"
+	"github.com/RangelReale/fproto-wrap/gowrap/tc/uuid"
 )
 
 //
@@ -17,17 +18,14 @@ import (
 type DefaultTypeValidatorPlugin_UUID struct {
 }
 
-func (t *DefaultTypeValidatorPlugin_UUID) GetDefaultTypeValidator(tp *fdep.DepType) fproto_gowrap_validate_default.DefaultTypeValidator {
-	if tp.DepFile.FilePath == "github.com/RangelReale/fproto-wrap/uuid.proto" &&
-		tp.DepFile.ProtoFile.PackageName == "fproto_wrap" &&
-		tp.Name == "UUID" {
+func (t *DefaultTypeValidatorPlugin_UUID) GetDefaultTypeValidator(typeinfo fproto_gowrap.TypeInfo, tp *fdep.DepType) fproto_gowrap_validate_default.DefaultTypeValidator {
+	if typeinfo.Converter().TCID() == fproto_gowrap_uuid.TCID_UUID {
 		return &DefaultTypeValidator_UUID{}
 	}
-	if tp.DepFile.FilePath == "github.com/RangelReale/fproto-wrap/uuid.proto" &&
-		tp.DepFile.ProtoFile.PackageName == "fproto_wrap" &&
-		tp.Name == "NullUUID" {
+	if typeinfo.Converter().TCID() == fproto_gowrap_uuid.TCID_NULLUUID {
 		return &DefaultTypeValidator_NullUUID{}
 	}
+
 	return nil
 }
 
@@ -86,7 +84,7 @@ func (v *DefaultTypeValidator_NullUUID) GenerateValidation(g *fproto_gowrap.Gene
 		if agn == "xrequired" {
 			supported = true
 			if agv.Source == "true" {
-				g.P("if !", varSrc, ".Valid && ", uuid_alias, ".Equals(", varSrc, ".UUID, uuid.Nil) {")
+				g.P("if !", varSrc, ".Valid || ", uuid_alias, ".Equal(", varSrc, ".UUID, uuid.Nil) {")
 				g.In()
 				g.P("err = ", errors_alias, ".New(\"Cannot be blank\")")
 				g.Out()

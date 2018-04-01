@@ -8,7 +8,7 @@ import (
 
 type DefaultTypeValidatorPlugin interface {
 	// Returns a default type validator for the type
-	GetDefaultTypeValidator(tp *fdep.DepType) DefaultTypeValidator
+	GetDefaultTypeValidator(typeinfo fproto_gowrap.TypeInfo, tp *fdep.DepType) DefaultTypeValidator
 }
 
 type DefaultTypeValidator interface {
