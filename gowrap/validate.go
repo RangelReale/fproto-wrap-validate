@@ -10,6 +10,7 @@ import (
 type Customizer_Validate struct {
 	FileId         string
 	TypeValidators []TypeValidatorPlugin
+	GenAllElements bool // whether to generate validation for all elements, even if they don't have validation options.
 }
 
 func NewCustomizer_Validate() *Customizer_Validate {
@@ -20,9 +21,12 @@ func NewCustomizer_Validate() *Customizer_Validate {
 }
 
 func NewCustomizer_Validate_Custom() *Customizer_Validate {
-	return &Customizer_Validate{}
+	return &Customizer_Validate{
+		FileId: fproto_gowrap.FILEID_MAIN,
+	}
 }
 
+// Gets a validator for an option type
 func (c *Customizer_Validate) GetValidator(validatorType *fdep.OptionType) TypeValidator {
 	for _, tcp := range c.TypeValidators {
 		tc := tcp.GetTypeValidator(validatorType)
@@ -33,6 +37,7 @@ func (c *Customizer_Validate) GetValidator(validatorType *fdep.OptionType) TypeV
 	return nil
 }
 
+// Generate code after message definitions
 func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 	var validate_elements []fproto.FProtoElement
 
@@ -43,7 +48,7 @@ func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 				return err
 			}
 
-			if fhas {
+			if c.GenAllElements || fhas {
 				validate_elements = append(validate_elements, msg)
 			}
 		}
@@ -55,7 +60,7 @@ func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 					return err
 				}
 
-				if fhas {
+				if c.GenAllElements || fhas {
 					validate_elements = append(validate_elements, oof)
 				}
 			}
@@ -79,6 +84,7 @@ func (c *Customizer_Validate) GenerateCode(g *fproto_gowrap.Generator) error {
 	return nil
 }
 
+// Generate validation for fproto element
 func (c *Customizer_Validate) generateValidationForElement(g *fproto_gowrap.Generator, element fproto.FProtoElement) error {
 	switch el := element.(type) {
 	case *fproto.MessageElement:
@@ -89,6 +95,7 @@ func (c *Customizer_Validate) generateValidationForElement(g *fproto_gowrap.Gene
 	return nil
 }
 
+// Generate validation for message or oneof
 func (c *Customizer_Validate) generateValidationForMessageOrOneOf(g *fproto_gowrap.Generator, element fproto.FProtoElement) error {
 	var eleGoName string
 	var fields []fproto.FieldElementTag
@@ -249,8 +256,8 @@ func (c *Customizer_Validate) generateValidationForOneOf(g *fproto_gowrap.Genera
 	return nil
 }
 
+// Check if any field of this type has a known validation type
 func (c *Customizer_Validate) TypeHasValidator(g *fproto_gowrap.Generator, element fproto.FProtoElement) (bool, error) {
-	// Check if any field of this type has a known validation type
 	var fields []fproto.FieldElementTag
 
 	switch xele := element.(type) {
@@ -278,6 +285,7 @@ type fieldValidator struct {
 	Option        *fproto.OptionElement
 }
 
+// Get all validators for the field
 func (c *Customizer_Validate) FieldGetValidators(g *fproto_gowrap.Generator, parentElement fproto.FProtoElement, field fproto.FieldElementTag) ([]*fieldValidator, error) {
 	var ret []*fieldValidator
 
@@ -309,6 +317,7 @@ func (c *Customizer_Validate) FieldGetValidators(g *fproto_gowrap.Generator, par
 	return ret, nil
 }
 
+// Check whether the field has any knwon validator
 func (c *Customizer_Validate) FieldHasValidator(g *fproto_gowrap.Generator, parentElement fproto.FProtoElement, field fproto.FieldElementTag) (bool, error) {
 	var options []*fproto.OptionElement
 	var fldType string
@@ -381,6 +390,7 @@ func (c *Customizer_Validate) FieldHasValidator(g *fproto_gowrap.Generator, pare
 	return false, nil
 }
 
+// Check if the field type has any validator
 func (c *Customizer_Validate) FieldTypeHasValidator(g *fproto_gowrap.Generator, parentElement fproto.FProtoElement, field fproto.FieldElementTag) (bool, error) {
 	var fldType string
 
@@ -417,6 +427,7 @@ func (c *Customizer_Validate) FieldTypeHasValidator(g *fproto_gowrap.Generator, 
 	return false, nil
 }
 
+// Gets the FIELD option validation
 func (c *Customizer_Validate) OptionGetValidator(g *fproto_gowrap.Generator, opt *fproto.OptionElement) (TypeValidator, error) {
 	opttype, err := g.GetDep().GetOption(fdep.FIELD_OPTION, opt.ParenthesizedName)
 	if err != nil {
@@ -434,6 +445,7 @@ func (c *Customizer_Validate) OptionGetValidator(g *fproto_gowrap.Generator, opt
 	return nil, nil
 }
 
+// Checks if the option has a validator
 func (c *Customizer_Validate) OptionHasValidator(g *fproto_gowrap.Generator, opt *fproto.OptionElement) (bool, error) {
 	opttype, err := g.GetDep().GetOption(fdep.FIELD_OPTION, opt.ParenthesizedName)
 	if err != nil {
@@ -451,6 +463,7 @@ func (c *Customizer_Validate) OptionHasValidator(g *fproto_gowrap.Generator, opt
 	return false, nil
 }
 
+// Finds a validator for an option
 func (c *Customizer_Validate) FindValidatorForOption(optType *fdep.OptionType) TypeValidator {
 	for _, v := range c.TypeValidators {
 		tv := v.GetTypeValidator(optType)
