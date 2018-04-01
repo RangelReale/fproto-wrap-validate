@@ -15,13 +15,6 @@ type Customizer_Validate struct {
 
 func NewCustomizer_Validate() *Customizer_Validate {
 	return &Customizer_Validate{
-		FileId:         fproto_gowrap.FILEID_MAIN,
-		TypeValidators: []TypeValidatorPlugin{&TypeValidatorPlugin_Default{}},
-	}
-}
-
-func NewCustomizer_Validate_Custom() *Customizer_Validate {
-	return &Customizer_Validate{
 		FileId: fproto_gowrap.FILEID_MAIN,
 	}
 }
