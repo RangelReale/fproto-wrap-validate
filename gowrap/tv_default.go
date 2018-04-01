@@ -31,7 +31,7 @@ type TypeValidator_Default struct {
 }
 
 func (t *TypeValidator_Default) GenerateValidation(g *fproto_gowrap.GeneratorFile, tp *fdep.DepType, option *fproto.OptionElement, varSrc string, varError string) (checkError bool, err error) {
-	errors_alias := g.Dep("errors", "errors")
+	errors_alias := g.DeclDep("errors", "errors")
 
 	/*
 		if !tp.IsScalar() {
