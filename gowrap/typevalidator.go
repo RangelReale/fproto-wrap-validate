@@ -1,4 +1,4 @@
-package fproto_gowrap_validate
+package fproto_gowrap_validator
 
 import (
 	"github.com/RangelReale/fdep"
