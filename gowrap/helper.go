@@ -7,6 +7,8 @@ import (
 )
 
 type ValidatorHelper interface {
+	GenerateValidationErrorCheck(g *fproto_gowrap.Generator, validationItem string, errorId ValidationErrorId)
+
 	// Gets a type validator
 	GetTypeValidator(validatorType *fdep.OptionType, typeinfo fproto_gowrap.TypeInfo, tp *fdep.DepType) TypeValidator
 

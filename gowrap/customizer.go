@@ -102,6 +102,8 @@ func (c *Customizer_Validator) generateValidationForElement(g *fproto_gowrap.Gen
 
 // Generate validation for message or oneof
 func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gowrap.Generator, element fproto.FProtoElement) error {
+	vruntime_alias := g.F(c.FileId).DeclDep("github.com/RangelReale/fproto-wrap-validator/gowrap/runtime", "validator_runtime")
+
 	var eleGoName string
 	var fields []fproto.FieldElementTag
 
@@ -123,6 +125,7 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 	g.F(c.FileId).P("func (m *", eleGoName, ") Validate() error {")
 
 	g.F(c.FileId).In()
+	g.F(c.FileId).P("var verr ", vruntime_alias, ".ValidationProcess")
 	g.F(c.FileId).P("var err error")
 	for _, fld := range fields {
 		fldGoName, _ := g.BuildFieldName(fld)
@@ -134,12 +137,15 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 		}
 
 		if len(fvals) > 0 {
+			var fldName string
 			var fldType string
 
 			switch xfld := fld.(type) {
 			case *fproto.FieldElement:
+				fldName = xfld.Name
 				fldType = xfld.Type
 			case *fproto.MapFieldElement:
+				fldName = xfld.Name
 				fldType = xfld.Type
 			}
 
@@ -157,6 +163,8 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 				}
 
 				for _, fval := range fvals {
+					g.F(c.FileId).P(`verr.SetContext("`, tpMsg.FullOriginalName(), `", "`, fldName, `", 0, "`, fval.Option.Name, `")`)
+
 					err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), c, ftypedt, fval.Option, "m."+fldGoName, "err")
 					if err != nil {
 						return err
@@ -180,17 +188,20 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 			case *fproto.FieldElement:
 				// err = MyFieldStruct.Validate()
 				fieldname := "m." + fldGoName
+				idxField := "0"
 				if xfld.Repeated {
-					g.F(c.FileId).P("for _, ms := range m.", fldGoName, " {")
+					g.F(c.FileId).P("for msi, ms := range m.", fldGoName, " {")
 					g.F(c.FileId).In()
 					fieldname = "ms"
+					idxField = "msi"
 				}
 
 				g.F(c.FileId).P("if ", fieldname, " != nil {")
 				g.F(c.FileId).In()
 
 				g.F(c.FileId).P("err = ", fieldname, ".Validate()")
-				g.F(c.FileId).GenerateErrorCheck("")
+				//g.F(c.FileId).GenerateErrorCheck("")
+				c.GenerateSubvalidationErrorCheck(g, xfld.Name, idxField)
 
 				g.F(c.FileId).Out()
 				g.F(c.FileId).P("}")
@@ -204,7 +215,7 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 				g.F(c.FileId).In()
 
 				g.F(c.FileId).P("err = ms.Validate()")
-				g.F(c.FileId).GenerateErrorCheck("")
+				c.GenerateSubvalidationMapErrorCheck(g, xfld.Name, "msidx")
 
 				g.F(c.FileId).Out()
 				g.F(c.FileId).P("}")
@@ -214,7 +225,7 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 		}
 	}
 
-	g.F(c.FileId).P("return err")
+	g.F(c.FileId).P("return verr.Err()")
 	g.F(c.FileId).Out()
 	g.F(c.FileId).P("}")
 	g.F(c.FileId).P()
@@ -493,4 +504,31 @@ func (c *Customizer_Validator) FindValidatorForOption(optType *fdep.OptionType) 
 
 func (c *Customizer_Validator) GenerateServiceCode(g *fproto_gowrap.Generator) error {
 	return nil
+}
+
+func (c *Customizer_Validator) GenerateValidationErrorCheck(g *fproto_gowrap.Generator, validationItem string, errorId ValidationErrorId) {
+	g.F(c.FileId).P("if err != nil {")
+	g.F(c.FileId).In()
+	g.F(c.FileId).P(`verr.AddError("`, validationItem, `", err, "`, errorId, `")`)
+	g.F(c.FileId).P("err = nil // reset for next call")
+	g.F(c.FileId).Out()
+	g.F(c.FileId).P("}")
+}
+
+func (c *Customizer_Validator) GenerateSubvalidationErrorCheck(g *fproto_gowrap.Generator, fieldName string, varIndex string) {
+	g.F(c.FileId).P("if err != nil {")
+	g.F(c.FileId).In()
+	g.F(c.FileId).P(`verr.AddValidateError("`, fieldName, `", `, varIndex, `, err)`)
+	g.F(c.FileId).P("err = nil // reset for next call")
+	g.F(c.FileId).Out()
+	g.F(c.FileId).P("}")
+}
+
+func (c *Customizer_Validator) GenerateSubvalidationMapErrorCheck(g *fproto_gowrap.Generator, fieldName string, varIndex string) {
+	g.F(c.FileId).P("if err != nil {")
+	g.F(c.FileId).In()
+	g.F(c.FileId).P(`verr.AddValidateMapError("`, fieldName, `", `, varIndex, `, err)`)
+	g.F(c.FileId).P("err = nil // reset for next call")
+	g.F(c.FileId).Out()
+	g.F(c.FileId).P("}")
 }
