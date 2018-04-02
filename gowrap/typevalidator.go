@@ -6,13 +6,11 @@ import (
 	"github.com/RangelReale/fproto-wrap/gowrap"
 )
 
-type ValidatorPlugin interface {
+type TypeValidatorPlugin interface {
 	// Returns a type validator for the type
-	GetValidator(validatorType *fdep.OptionType) Validator
-
-	ValidatorPrefixes() []string
+	GetTypeValidator(validatorType *fdep.OptionType, typeinfo fproto_gowrap.TypeInfo, tp *fdep.DepType) TypeValidator
 }
 
-type Validator interface {
+type TypeValidator interface {
 	GenerateValidation(g *fproto_gowrap.GeneratorFile, vh ValidatorHelper, tp *fdep.DepType, option *fproto.OptionElement, varSrc string, varError string) error
 }

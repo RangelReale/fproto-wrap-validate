@@ -10,6 +10,7 @@ import (
 type Customizer_Validator struct {
 	FileId         string
 	Validators     []ValidatorPlugin
+	TypeValidators []TypeValidatorPlugin
 	GenAllElements bool // whether to generate validation for all elements, even if they don't have validation options.
 }
 
@@ -23,6 +24,17 @@ func NewCustomizer_Validate() *Customizer_Validator {
 func (c *Customizer_Validator) GetValidator(optionType *fdep.OptionType) Validator {
 	for _, tcp := range c.Validators {
 		tc := tcp.GetValidator(optionType)
+		if tc != nil {
+			return tc
+		}
+	}
+	return nil
+}
+
+// Gets a type validator
+func (c *Customizer_Validator) GetTypeValidator(validatorType *fdep.OptionType, typeinfo fproto_gowrap.TypeInfo, tp *fdep.DepType) TypeValidator {
+	for _, tcp := range c.TypeValidators {
+		tc := tcp.GetTypeValidator(validatorType, typeinfo, tp)
 		if tc != nil {
 			return tc
 		}
@@ -145,7 +157,7 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 				}
 
 				for _, fval := range fvals {
-					err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), ftypedt, fval.Option, "m."+fldGoName, "err")
+					err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), c, ftypedt, fval.Option, "m."+fldGoName, "err")
 					if err != nil {
 						return err
 					}
@@ -285,14 +297,14 @@ func (c *Customizer_Validator) TypeHasValidator(g *fproto_gowrap.Generator, elem
 	return false, nil
 }
 
-type fieldValidator struct {
+type FieldValidator struct {
 	TypeValidator Validator
 	Option        *fproto.OptionElement
 }
 
 // Get all validators for the field
-func (c *Customizer_Validator) FieldGetValidators(g *fproto_gowrap.Generator, parentElement fproto.FProtoElement, field fproto.FieldElementTag) ([]*fieldValidator, error) {
-	var ret []*fieldValidator
+func (c *Customizer_Validator) FieldGetValidators(g *fproto_gowrap.Generator, parentElement fproto.FProtoElement, field fproto.FieldElementTag) ([]*FieldValidator, error) {
+	var ret []*FieldValidator
 
 	var options []*fproto.OptionElement
 
@@ -312,7 +324,7 @@ func (c *Customizer_Validator) FieldGetValidators(g *fproto_gowrap.Generator, pa
 		}
 
 		if tv != nil {
-			ret = append(ret, &fieldValidator{
+			ret = append(ret, &FieldValidator{
 				TypeValidator: tv,
 				Option:        o,
 			})
