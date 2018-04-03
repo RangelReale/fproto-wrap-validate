@@ -143,6 +143,7 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 			var fldName string
 			var fldType string
 			is_array := false
+			repeatedType := RT_ARRAY
 
 			switch xfld := fld.(type) {
 			case *fproto.FieldElement:
@@ -153,6 +154,7 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 				fldName = xfld.Name
 				fldType = xfld.Type
 				is_array = true
+				repeatedType = RT_MAP
 			}
 
 			if fldType != "" {
@@ -171,6 +173,18 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 				v_fldName := "m." + fldGoName
 				v_index := "nil"
 				if is_array {
+					// generate validation for repeated field
+					for _, fval := range fvals {
+						if fvrepeat, fvrepeatok := fval.TypeValidator.(ValidatorRepeated); fvrepeatok {
+							g.F(c.FileId).P(`verr.SetContext("`, tpMsg.FullOriginalName(), `", "`, fldName, `", -1, "`, fval.Option.Name, `")`)
+
+							err := fvrepeat.GenerateValidationRepeated(g.F(c.FileId), c, repeatedType, ftypedt, fval.Option, v_fldName, "err")
+							if err != nil {
+								return err
+							}
+						}
+					}
+
 					g.F(c.FileId).P("for msi, ms := range m.", fldGoName, "{")
 					g.F(c.FileId).In()
 
@@ -179,11 +193,13 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 				}
 
 				for _, fval := range fvals {
-					g.F(c.FileId).P(`verr.SetContext("`, tpMsg.FullOriginalName(), `", "`, fldName, `", `, v_index, `, "`, fval.Option.Name, `")`)
+					if fvnormal, fvnormalok := fval.TypeValidator.(ValidatorNormal); fvnormalok {
+						g.F(c.FileId).P(`verr.SetContext("`, tpMsg.FullOriginalName(), `", "`, fldName, `", `, v_index, `, "`, fval.Option.Name, `")`)
 
-					err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), c, ftypedt, fval.Option, v_fldName, "err")
-					if err != nil {
-						return err
+						err := fvnormal.GenerateValidation(g.F(c.FileId), c, ftypedt, fval.Option, v_fldName, "err")
+						if err != nil {
+							return err
+						}
 					}
 				}
 

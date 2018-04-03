@@ -13,6 +13,21 @@ type ValidatorPlugin interface {
 	ValidatorPrefixes() []string
 }
 
+type RepeatedType int
+
+const (
+	RT_ARRAY RepeatedType = iota
+	RT_MAP
+)
+
 type Validator interface {
+	FPValidator() // tag interface
+}
+
+type ValidatorNormal interface {
 	GenerateValidation(g *fproto_gowrap.GeneratorFile, vh ValidatorHelper, tp *fdep.DepType, option *fproto.OptionElement, varSrc string, varError string) error
+}
+
+type ValidatorRepeated interface {
+	GenerateValidationRepeated(g *fproto_gowrap.GeneratorFile, vh ValidatorHelper, repeatedType RepeatedType, tp *fdep.DepType, option *fproto.OptionElement, varSrc string, varError string) error
 }
