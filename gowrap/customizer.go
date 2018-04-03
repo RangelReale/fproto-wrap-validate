@@ -1,6 +1,9 @@
 package fproto_gowrap_validator
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/RangelReale/fdep"
 	"github.com/RangelReale/fproto"
 	"github.com/RangelReale/fproto-wrap/gowrap"
@@ -139,14 +142,17 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 		if len(fvals) > 0 {
 			var fldName string
 			var fldType string
+			is_array := false
 
 			switch xfld := fld.(type) {
 			case *fproto.FieldElement:
 				fldName = xfld.Name
 				fldType = xfld.Type
+				is_array = xfld.Repeated == true
 			case *fproto.MapFieldElement:
 				fldName = xfld.Name
 				fldType = xfld.Type
+				is_array = true
 			}
 
 			if fldType != "" {
@@ -162,13 +168,28 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 					g.F(c.FileId).In()
 				}
 
-				for _, fval := range fvals {
-					g.F(c.FileId).P(`verr.SetContext("`, tpMsg.FullOriginalName(), `", "`, fldName, `", 0, "`, fval.Option.Name, `")`)
+				v_fldName := "m." + fldGoName
+				v_index := "nil"
+				if is_array {
+					g.F(c.FileId).P("for msi, ms := range m.", fldGoName, "{")
+					g.F(c.FileId).In()
 
-					err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), c, ftypedt, fval.Option, "m."+fldGoName, "err")
+					v_fldName = "ms"
+					v_index = "msi"
+				}
+
+				for _, fval := range fvals {
+					g.F(c.FileId).P(`verr.SetContext("`, tpMsg.FullOriginalName(), `", "`, fldName, `", `, v_index, `, "`, fval.Option.Name, `")`)
+
+					err := fval.TypeValidator.GenerateValidation(g.F(c.FileId), c, ftypedt, fval.Option, v_fldName, "err")
 					if err != nil {
 						return err
 					}
+				}
+
+				if is_array {
+					g.F(c.FileId).Out()
+					g.F(c.FileId).P("}")
 				}
 
 				if ftypetinfo.Converter().IsPointer() {
@@ -506,11 +527,22 @@ func (c *Customizer_Validator) GenerateServiceCode(g *fproto_gowrap.Generator) e
 	return nil
 }
 
-func (c *Customizer_Validator) GenerateValidationErrorCheck(g *fproto_gowrap.Generator, validationItem string, errorId ValidationErrorId) {
-	g.F(c.FileId).P("if err != nil {")
+func (c *Customizer_Validator) GenerateValidationErrorCheck(g *fproto_gowrap.Generator, varError string, validationItem string, errorId ValidationErrorId, errorParams ...string) {
+	var ep []string
+	for _, errp := range errorParams {
+		ep = append(ep, strconv.Quote(errp))
+	}
+	epstr := ""
+	if len(ep) > 0 {
+		epstr = ", " + strings.Join(ep, ", ")
+	}
+
+	g.F(c.FileId).P("if ", varError, " != nil {")
 	g.F(c.FileId).In()
-	g.F(c.FileId).P(`verr.AddError("`, validationItem, `", err, "`, errorId, `")`)
-	g.F(c.FileId).P("err = nil // reset for next call")
+	g.F(c.FileId).P(`verr.AddError("`, validationItem, `", `, varError, `, "`, errorId, `"`, epstr, `)`)
+	if varError == "err" {
+		g.F(c.FileId).P(varError, " = nil // reset for next call")
+	}
 	g.F(c.FileId).Out()
 	g.F(c.FileId).P("}")
 }

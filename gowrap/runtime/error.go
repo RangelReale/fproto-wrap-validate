@@ -2,6 +2,7 @@ package validator_runtime
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/RangelReale/fproto-wrap-validator/gowrap"
@@ -43,16 +44,26 @@ func (e *ValidationProcess) Err() *Error {
 	return nil
 }
 
-func (e *ValidationProcess) SetContext(protoName string, fieldName string, index int, validationOption string) {
-	e.context = &ValidationErrorItem{
+func (e *ValidationProcess) SetContext(protoName string, fieldName string, index interface{}, validationOption string) {
+	newctx := &ValidationErrorItem{
 		ProtoName:        protoName,
 		FieldName:        fieldName,
-		Index:            index,
 		ValidationOption: validationOption,
 	}
+	switch iv := index.(type) {
+	case nil:
+		newctx.Index = -1
+	case string:
+		newctx.MapIndex = iv
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		newctx.Index = int(reflect.ValueOf(index).Int())
+	default:
+		panic("Unknown index type")
+	}
+	e.context = newctx
 }
 
-func (e *ValidationProcess) AddError(validationItem string, err error, errorId string) {
+func (e *ValidationProcess) AddError(validationItem string, err error, errorId string, errorParams ...string) {
 	if e.context == nil {
 		panic("Validation context is nil - must call SetContext first")
 	}
@@ -65,10 +76,11 @@ func (e *ValidationProcess) AddError(validationItem string, err error, errorId s
 		ValidationItem:   validationItem,
 		Err:              err,
 		ErrorId:          fproto_gowrap_validator.ValidationErrorId(errorId),
+		ErrorParams:      e.parseErrorParams(errorParams...),
 	})
 }
 
-func (e *ValidationProcess) AddValidateError(fieldName string, index int, err error) {
+func (e *ValidationProcess) AddValidateError(fieldName string, index int, err error, errorParams ...string) {
 	e.errors = append(e.errors, &ValidationErrorItem{
 		FieldName: fieldName,
 		Index:     index,
@@ -76,12 +88,29 @@ func (e *ValidationProcess) AddValidateError(fieldName string, index int, err er
 	})
 }
 
-func (e *ValidationProcess) AddValidateMapError(fieldName string, mapIndex string, err error) {
+func (e *ValidationProcess) AddValidateMapError(fieldName string, mapIndex string, err error, errorParams ...string) {
 	e.errors = append(e.errors, &ValidationErrorItem{
 		FieldName: fieldName,
 		MapIndex:  mapIndex,
 		Err:       err,
 	})
+}
+
+func (e *ValidationProcess) parseErrorParams(errorParams ...string) map[string]string {
+	if len(errorParams) > 0 {
+		ret := make(map[string]string)
+		var lastval *string
+		for _, p := range errorParams {
+			if lastval == nil {
+				lastval = &p
+			} else {
+				ret[*lastval] = p
+				lastval = nil
+			}
+		}
+		return ret
+	}
+	return nil
 }
 
 type ValidationErrorItem struct {
@@ -93,6 +122,7 @@ type ValidationErrorItem struct {
 	ValidationItem   string
 	Err              error
 	ErrorId          fproto_gowrap_validator.ValidationErrorId
+	ErrorParams      map[string]string
 }
 
 func (vi *ValidationErrorItem) ErrorDescription(parent string) string {
