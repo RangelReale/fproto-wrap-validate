@@ -238,7 +238,7 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 				case *fproto.FieldElement:
 					// err = MyFieldStruct.Validate()
 					fieldname := "m." + fldGoName
-					idxField := "0"
+					idxField := "nil"
 					if xfld.Repeated {
 						g.F(c.FileId).P("for msi, ms := range m.", fldGoName, " {")
 						g.F(c.FileId).In()
@@ -600,14 +600,3 @@ func (c *Customizer_Validator) GenerateSubvalidationErrorCheck(g *fproto_gowrap.
 	g.F(c.FileId).Out()
 	g.F(c.FileId).P("}")
 }
-
-/*
-func (c *Customizer_Validator) GenerateSubvalidationMapErrorCheck(g *fproto_gowrap.Generator, fieldName string, varIndex string) {
-	g.F(c.FileId).P("if err != nil {")
-	g.F(c.FileId).In()
-	g.F(c.FileId).P(`iverr.AddValidateMapError("`, fieldName, `", `, varIndex, `, err)`)
-	g.F(c.FileId).P("err = nil // reset for next call")
-	g.F(c.FileId).Out()
-	g.F(c.FileId).P("}")
-}
-*/
