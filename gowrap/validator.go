@@ -25,9 +25,9 @@ type Validator interface {
 }
 
 type ValidatorNormal interface {
-	GenerateValidation(g *fproto_gowrap.GeneratorFile, vh ValidatorHelper, tp *fdep.DepType, option *fproto.OptionElement, varSrc string, varError string) error
+	GenerateValidation(g *fproto_gowrap.GeneratorFile, vh ValidatorHelper, tp *fdep.DepType, option *fproto.OptionElement, varSrc string) error
 }
 
 type ValidatorRepeated interface {
-	GenerateValidationRepeated(g *fproto_gowrap.GeneratorFile, vh ValidatorHelper, repeatedType RepeatedType, tp *fdep.DepType, option *fproto.OptionElement, varSrc string, varError string) error
+	GenerateValidationRepeated(g *fproto_gowrap.GeneratorFile, vh ValidatorHelper, repeatedType RepeatedType, tp *fdep.DepType, option *fproto.OptionElement, varSrc string) error
 }

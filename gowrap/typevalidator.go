@@ -13,5 +13,5 @@ type TypeValidatorPlugin interface {
 
 type TypeValidator interface {
 	// Generate validation for a field item
-	GenerateValidation(g *fproto_gowrap.GeneratorFile, vh ValidatorHelper, tp *fdep.DepType, option *fproto.OptionElement, varSrc string, varError string) error
+	GenerateValidation(g *fproto_gowrap.GeneratorFile, vh ValidatorHelper, tp *fdep.DepType, option *fproto.OptionElement, varSrc string) error
 }

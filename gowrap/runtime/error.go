@@ -1,102 +1,137 @@
 package validator_runtime
 
 import (
-	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/RangelReale/fproto-wrap-validator/gowrap"
 )
 
+//
+// Error
+//
 type Error struct {
-	Errors []*ValidationErrorItem
-}
-
-func (e *Error) ErrorDescription(parent string) string {
-	if len(e.Errors) > 0 {
-		var ret strings.Builder
-		for _, ei := range e.Errors {
-			ret.WriteString(ei.ErrorDescription(parent))
-			ret.WriteByte('\n')
-		}
-		return ret.String()
-	}
-	return "Validation error"
+	Fields map[string]*ErrorField
 }
 
 func (e *Error) Error() string {
-	return e.ErrorDescription("")
+	return "Validation error"
+}
+
+func (e *Error) IsEmpty() bool {
+	return e.Fields == nil || len(e.Fields) == 0
+}
+
+type ErrorField struct {
+	ProtoName        string
+	FieldName        string
+	ValidationErrors []*ErrorValidatorError
+}
+
+type ErrorValidatorError struct {
+	Index            int
+	MapIndex         string
+	ValidationOption string
+	ValidationItem   string
+	Err              error
+	ErrorId          fproto_gowrap_validator.ValidationErrorId
+	ErrorParams      map[string]string
 }
 
 //
-// ValidationProcess
+// Process
 //
-type ValidationProcess struct {
-	errors []*ValidationErrorItem
 
-	context *ValidationErrorItem
+type ValidationProcessField struct {
+	ProtoName    string
+	FieldName    string
+	ItemValidate func(ValidationErrorProcessor)
 }
 
-func (e *ValidationProcess) Err() *Error {
-	if len(e.errors) > 0 {
-		return &Error{Errors: e.errors}
-	}
-	return nil
+type ValidationErrorProcessor interface {
+	SetContext(index interface{}, validationOption string)
+	AddError(validationItem string, err error, errorId string, errorParams ...string)
+	AddValidateError(index interface{}, err error, errorParams ...string)
 }
 
-func (e *ValidationProcess) SetContext(protoName string, fieldName string, index interface{}, validationOption string) {
-	newctx := &ValidationErrorItem{
-		ProtoName:        protoName,
-		FieldName:        fieldName,
-		ValidationOption: validationOption,
-	}
-	switch iv := index.(type) {
-	case nil:
-		newctx.Index = -1
-	case string:
-		newctx.MapIndex = iv
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		newctx.Index = int(reflect.ValueOf(index).Int())
-	default:
-		panic("Unknown index type")
-	}
-	e.context = newctx
+type vep struct {
+	curfield            *ValidationProcessField
+	curindex            interface{}
+	curvalidationoption string
+
+	err *Error
 }
 
-func (e *ValidationProcess) AddError(validationItem string, err error, errorId string, errorParams ...string) {
-	if e.context == nil {
-		panic("Validation context is nil - must call SetContext first")
+func (v *vep) SetContext(index interface{}, validationOption string) {
+	v.curindex = index
+	v.curvalidationoption = validationOption
+}
+
+func (v *vep) AddError(validationItem string, err error, errorId string, errorParams ...string) {
+	ef, efok := v.err.Fields[v.curfield.FieldName]
+	if !efok {
+		ef = &ErrorField{
+			FieldName: v.curfield.FieldName,
+			ProtoName: v.curfield.ProtoName,
+		}
+		v.err.Fields[v.curfield.FieldName] = ef
 	}
 
-	e.errors = append(e.errors, &ValidationErrorItem{
-		ProtoName:        e.context.ProtoName,
-		FieldName:        e.context.FieldName,
-		Index:            e.context.Index,
-		ValidationOption: e.context.ValidationOption,
+	verror := &ErrorValidatorError{
+		ValidationOption: v.curvalidationoption,
 		ValidationItem:   validationItem,
 		Err:              err,
 		ErrorId:          fproto_gowrap_validator.ValidationErrorId(errorId),
-		ErrorParams:      e.parseErrorParams(errorParams...),
-	})
+		ErrorParams:      v.parseErrorParams(errorParams...),
+	}
+	switch iv := v.curindex.(type) {
+	case nil:
+		verror.Index = -1
+	case string:
+		verror.MapIndex = iv
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		verror.Index = int(reflect.ValueOf(v.curindex).Int())
+	default:
+		panic("Unknown index type")
+	}
+
+	ef.ValidationErrors = append(ef.ValidationErrors, verror)
 }
 
-func (e *ValidationProcess) AddValidateError(fieldName string, index int, err error, errorParams ...string) {
-	e.errors = append(e.errors, &ValidationErrorItem{
-		FieldName: fieldName,
-		Index:     index,
-		Err:       err,
-	})
+func (v *vep) AddValidateError(index interface{}, err error, errorParams ...string) {
+	ef, efok := v.err.Fields[v.curfield.FieldName]
+	if !efok {
+		ef = &ErrorField{
+			FieldName: v.curfield.FieldName,
+			ProtoName: v.curfield.ProtoName,
+		}
+		v.err.Fields[v.curfield.FieldName] = ef
+	}
+
+	verror := &ErrorValidatorError{
+		Err:         err,
+		ErrorParams: v.parseErrorParams(errorParams...),
+	}
+	switch iv := index.(type) {
+	case nil:
+		verror.Index = -1
+	case string:
+		verror.MapIndex = iv
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		verror.Index = int(reflect.ValueOf(index).Int())
+	default:
+		panic("Unknown index type")
+	}
+
+	ef.ValidationErrors = append(ef.ValidationErrors, verror)
 }
 
-func (e *ValidationProcess) AddValidateMapError(fieldName string, mapIndex string, err error, errorParams ...string) {
-	e.errors = append(e.errors, &ValidationErrorItem{
-		FieldName: fieldName,
-		MapIndex:  mapIndex,
-		Err:       err,
-	})
+func (v *vep) setCurField(f *ValidationProcessField) {
+	v.curfield = f
+	v.curindex = nil
+	v.curvalidationoption = ""
 }
 
-func (e *ValidationProcess) parseErrorParams(errorParams ...string) map[string]string {
+func (e *vep) parseErrorParams(errorParams ...string) map[string]string {
 	if len(errorParams) > 0 {
 		ret := make(map[string]string)
 		var lastval *string
@@ -113,21 +148,20 @@ func (e *ValidationProcess) parseErrorParams(errorParams ...string) map[string]s
 	return nil
 }
 
-type ValidationErrorItem struct {
-	ProtoName        string
-	FieldName        string
-	Index            int
-	MapIndex         string
-	ValidationOption string
-	ValidationItem   string
-	Err              error
-	ErrorId          fproto_gowrap_validator.ValidationErrorId
-	ErrorParams      map[string]string
-}
-
-func (vi *ValidationErrorItem) ErrorDescription(parent string) string {
-	if ivi, ok := vi.Err.(*Error); ok {
-		return ivi.ErrorDescription(parent + "." + vi.FieldName)
+func ValidationProcess(validations []*ValidationProcessField) error {
+	v := &vep{
+		err: &Error{
+			Fields: make(map[string]*ErrorField),
+		},
 	}
-	return fmt.Sprintf("%s.%s: %s", parent, vi.FieldName, vi.Err.Error())
+	for _, val := range validations {
+		v.setCurField(val)
+		val.ItemValidate(v)
+	}
+
+	if v.err.IsEmpty() {
+		return nil
+	}
+
+	return v.err
 }
