@@ -17,7 +17,7 @@ type Customizer_Validator struct {
 	GenAllElements bool // whether to generate validation for all elements, even if they don't have validation options.
 }
 
-func NewCustomizer_Validate() *Customizer_Validator {
+func NewCustomizer_Validator() *Customizer_Validator {
 	return &Customizer_Validator{
 		FileId: fproto_gowrap.FILEID_MAIN,
 	}
