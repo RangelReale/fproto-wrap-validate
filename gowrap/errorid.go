@@ -13,4 +13,5 @@ const (
 	VEID_LENGTH         ValidationErrorId = "fpv.VEID_LENGTH"
 	VEID_PATTERN        ValidationErrorId = "fpv.VEID_PATTERN"
 	VEID_MINMAX         ValidationErrorId = "fpv.VEID_MINMAX"
+	VEID_INVALID_VALUE  ValidationErrorId = "fpv.VEID_INVALID_VALUE"
 )
