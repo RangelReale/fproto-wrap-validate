@@ -189,7 +189,7 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 						for _, fval := range fvals {
 							if fvrepeat, fvrepeatok := fval.TypeValidator.(ValidatorRepeated); fvrepeatok {
 								g.F(c.FileId).P("// Validation: ", fld.ElementName(), " (REPEATED) = ", fval.Option.Name)
-								g.F(c.FileId).P(`iverr.SetContext(-1, "`, fval.Option.Name, `")`)
+								g.F(c.FileId).P(`iverr.SetContext(nil, "`, fval.Option.Name, `")`)
 
 								err := fvrepeat.GenerateValidationRepeated(g.F(c.FileId), c, repeatedType, ftypedt, fval.Option, v_fldName)
 								if err != nil {
