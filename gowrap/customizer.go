@@ -569,11 +569,6 @@ func (c *Customizer_Validator) GenerateValidationErrorCheck(g *fproto_gowrap.Gen
 	g.F(c.FileId).In()
 
 	c.GenerateValidationErrorAdd(g, varError, validationItem, errorId, errorParams...)
-	/*
-		if varError == "err" {
-			g.F(c.FileId).P(varError, " = nil // reset for next call")
-		}
-	*/
 
 	g.F(c.FileId).Out()
 	g.F(c.FileId).P("}")
@@ -596,7 +591,6 @@ func (c *Customizer_Validator) GenerateSubvalidationErrorCheck(g *fproto_gowrap.
 	g.F(c.FileId).P("if err != nil {")
 	g.F(c.FileId).In()
 	g.F(c.FileId).P(`iverr.AddValidateError(`, varIndex, `, err)`)
-	//g.F(c.FileId).P("err = nil // reset for next call")
 	g.F(c.FileId).Out()
 	g.F(c.FileId).P("}")
 }
