@@ -1,4 +1,4 @@
-# fproto-gowrap-validator - Golang
+# fproto-wrap-validator - Golang
 
 [![GoDoc](https://godoc.org/github.com/RangelReale/fproto-wrap-validator/gowrap?status.svg)](https://godoc.org/github.com/RangelReale/fproto-wrap-validator/gowrap)
 
@@ -17,8 +17,8 @@ It is also possible to generate custom validation for determined types using typ
 
 ### example
 
-This example uses the [Std](https://github.com/RangelReale/fproto-wrap-validator-std/tree/master/gowrap) and
-[Govalidator](https://github.com/RangelReale/fproto-wrap-validator-govalidator/tree/master/gowrap) validator plugins.
+This example uses the [Std](https://github.com/RangelReale/fproto-wrap-validator-std) and
+[Govalidator](https://github.com/RangelReale/fproto-wrap-validator-govalidator) validator plugins.
 
 ```protobuf
 syntax = "proto3";
