@@ -175,13 +175,6 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 						return err
 					}
 
-					ftypetinfo := g.GetTypeInfo(ftypedt)
-					if ftypetinfo.Converter().IsPointer() {
-						// if m.field != nil
-						g.F(c.FileId).P("if m.", fldGoName, " != nil {")
-						g.F(c.FileId).In()
-					}
-
 					v_fldName := "m." + fldGoName
 					v_index := "nil"
 					if is_array {
@@ -218,11 +211,6 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 					}
 
 					if is_array {
-						g.F(c.FileId).Out()
-						g.F(c.FileId).P("}")
-					}
-
-					if ftypetinfo.Converter().IsPointer() {
 						g.F(c.FileId).Out()
 						g.F(c.FileId).P("}")
 					}
