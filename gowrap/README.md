@@ -38,41 +38,41 @@ And in the wrapper generation program:
 
 ```go
     // create the fdep parser
-	parsedep := fdep.NewDep()
+    parsedep := fdep.NewDep()
 
     // ... add files here ...
 
     // create the fproto-wrap wrapper
-	w := fproto_gowrap.NewWrapper(parsedep)
+    w := fproto_gowrap.NewWrapper(parsedep)
 
     // ... configure wrapper here ...
 
     // create the core validator
-	val := fproto_gowrap_validator.NewCustomizer_Validator()
+    val := fproto_gowrap_validator.NewCustomizer_Validator()
 
     // Add both validators to the core validator
-	val.Validators = append(val.Validators,
-		&fproto_gowrap_validator_std.ValidatorPlugin_Std{},
-		&fproto_gowrap_validator_govalidator.ValidatorPlugin_Govalidator{},
-	)
+    val.Validators = append(val.Validators,
+        &fproto_gowrap_validator_std.ValidatorPlugin_Std{},
+        &fproto_gowrap_validator_govalidator.ValidatorPlugin_Govalidator{},
+    )
 
     // Add some type validators if needed
-	val.TypeValidators = append(val.TypeValidators,
-		&fproto_gowrap_validator_std_uuid.TypeValidatorPlugin_UUID{},
-		&fproto_gowrap_validator_std_time.TypeValidatorPlugin_Time{},
-		&fproto_gowrap_validator_std_duration.TypeValidatorPlugin_Duration{},
-	)
+    val.TypeValidators = append(val.TypeValidators,
+        &fproto_gowrap_validator_std_uuid.TypeValidatorPlugin_UUID{},
+        &fproto_gowrap_validator_std_time.TypeValidatorPlugin_Time{},
+        &fproto_gowrap_validator_std_duration.TypeValidatorPlugin_Duration{},
+    )
 
 	// Add the core validator to the fproto-wrap customizers
-	w.Customizers = append(w.Customizers,
-		val,
-	)
+    w.Customizers = append(w.Customizers,
+        val,
+    )
 ```
 
 ### validations
 
-* Std - [https://github.com/RangelReale/fproto-wrap-validator-std/gowrap](https://github.com/RangelReale/fproto-wrap-validator-std/tree/master/gowrap) (standard validators like "required", "int_gt", "float_gte", "length_eq", etc)
-* Govalidator - [https://github.com/RangelReale/fproto-wrap-validator-govalidator/gowrap](https://github.com/RangelReale/fproto-wrap-validator-govalidator/tree/master/gowrap) (validations using [govalidator](https://github.com/asaskevich/govalidator))
+* Std - [https://github.com/RangelReale/fproto-wrap-validator-std](https://github.com/RangelReale/fproto-wrap-validator-std) (standard validators like "required", "int_gt", "float_gte", "length_eq", etc)
+* Govalidator - [https://github.com/RangelReale/fproto-wrap-validator-govalidator](https://github.com/RangelReale/fproto-wrap-validator-govalidator) (validations using [govalidator](https://github.com/asaskevich/govalidator))
 
 ### author
 
