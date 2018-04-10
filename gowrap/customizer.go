@@ -215,6 +215,11 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 						g.F(c.FileId).P("}")
 					}
 				}
+
+				switch xfld := fld.(type) {
+				case *fproto.OneOfFieldElement:
+					g.F(c.FileId).P("// Validation: ", fld.ElementName(), " ONEOF ", xfld.Name)
+				}
 			}
 
 			if fhas {
