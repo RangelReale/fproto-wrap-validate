@@ -158,6 +158,7 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 				var fldType string
 				is_array := false
 				repeatedType := RT_ARRAY
+				var ooFld *fproto.OneOfFieldElement
 
 				switch xfld := fld.(type) {
 				case *fproto.FieldElement:
@@ -167,58 +168,58 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 					fldType = xfld.Type
 					is_array = true
 					repeatedType = RT_MAP
+				case *fproto.OneOfFieldElement:
+					ooFld = xfld
 				}
 
-				if fldType != "" {
-					ftypedt, err := tpMsg.GetType(fldType)
+				var ftypedt *fdep.DepType
+				if ooFld == nil {
+					ftypedt, err = tpMsg.GetType(fldType)
 					if err != nil {
 						return err
 					}
+				} else {
+					ftypedt = fdep.NewDepTypeOneOf(tpMsg.DepFile, ooFld)
+				}
 
-					v_fldName := "m." + fldGoName
-					v_index := "nil"
-					if is_array {
-						// generate validation for repeated field
-						for _, fval := range fvals {
-							if fvrepeat, fvrepeatok := fval.TypeValidator.(ValidatorRepeated); fvrepeatok {
-								g.F(c.FileId).P("// Validation: ", fld.ElementName(), " (REPEATED) = ", fval.Option.Name)
-								g.F(c.FileId).P(`iverr.SetContext(nil, "`, fval.Option.Name, `")`)
-
-								err := fvrepeat.GenerateValidationRepeated(g.F(c.FileId), c, repeatedType, ftypedt, fval.Option, v_fldName)
-								if err != nil {
-									return err
-								}
-							}
-						}
-
-						g.F(c.FileId).P("for msi, ms := range m.", fldGoName, "{")
-						g.F(c.FileId).In()
-
-						v_fldName = "ms"
-						v_index = "msi"
-					}
-
+				v_fldName := "m." + fldGoName
+				v_index := "nil"
+				if is_array {
+					// generate validation for repeated field
 					for _, fval := range fvals {
-						if fvnormal, fvnormalok := fval.TypeValidator.(ValidatorNormal); fvnormalok {
-							g.F(c.FileId).P("// Validation: ", fld.ElementName(), " = ", fval.Option.Name)
-							g.F(c.FileId).P(`iverr.SetContext(`, v_index, `, "`, fval.Option.Name, `")`)
+						if fvrepeat, fvrepeatok := fval.TypeValidator.(ValidatorRepeated); fvrepeatok {
+							g.F(c.FileId).P("// Validation: ", fld.ElementName(), " (REPEATED) = ", fval.Option.Name)
+							g.F(c.FileId).P(`iverr.SetContext(nil, "`, fval.Option.Name, `")`)
 
-							err := fvnormal.GenerateValidation(g.F(c.FileId), c, ftypedt, fval.Option, v_fldName)
+							err := fvrepeat.GenerateValidationRepeated(g.F(c.FileId), c, repeatedType, ftypedt, fval.Option, v_fldName)
 							if err != nil {
 								return err
 							}
 						}
 					}
 
-					if is_array {
-						g.F(c.FileId).Out()
-						g.F(c.FileId).P("}")
+					g.F(c.FileId).P("for msi, ms := range m.", fldGoName, "{")
+					g.F(c.FileId).In()
+
+					v_fldName = "ms"
+					v_index = "msi"
+				}
+
+				for _, fval := range fvals {
+					if fvnormal, fvnormalok := fval.TypeValidator.(ValidatorNormal); fvnormalok {
+						g.F(c.FileId).P("// Validation: ", fld.ElementName(), " = ", fval.Option.Name)
+						g.F(c.FileId).P(`iverr.SetContext(`, v_index, `, "`, fval.Option.Name, `")`)
+
+						err := fvnormal.GenerateValidation(g.F(c.FileId), c, ftypedt, fval.Option, v_fldName)
+						if err != nil {
+							return err
+						}
 					}
 				}
 
-				switch xfld := fld.(type) {
-				case *fproto.OneOfFieldElement:
-					g.F(c.FileId).P("// Validation: ", fld.ElementName(), " ONEOF ", xfld.Name)
+				if is_array {
+					g.F(c.FileId).Out()
+					g.F(c.FileId).P("}")
 				}
 			}
 
@@ -264,7 +265,9 @@ func (c *Customizer_Validator) generateValidationForMessageOrOneOf(g *fproto_gow
 					g.F(c.FileId).Out()
 					g.F(c.FileId).P("}")
 				case *fproto.OneOfFieldElement:
-					// Will be validated separatelly
+					ooGoName, _ := g.BuildOneOfName(xfld)
+					g.F(c.FileId).P("err := ", ooGoName, "_Validate(m.", fldGoName, ")")
+					c.GenerateSubvalidationErrorCheck(g, xfld.Name, "nil")
 				}
 			}
 
@@ -479,6 +482,7 @@ func (c *Customizer_Validator) FieldTypeHasValidator(g *fproto_gowrap.Generator,
 	case *fproto.MapFieldElement:
 		fldType = xfld.Type
 	case *fproto.OneOfFieldElement:
+		return c.TypeHasValidator(g, field)
 	}
 
 	// check if the field type has validators
