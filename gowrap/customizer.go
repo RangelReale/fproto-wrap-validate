@@ -512,7 +512,7 @@ func (c *Customizer_Validator) FieldTypeHasValidator(g *fproto_gowrap.Generator,
 
 // Gets the FIELD option validation
 func (c *Customizer_Validator) OptionGetValidator(g *fproto_gowrap.Generator, opt *fproto.OptionElement) (Validator, error) {
-	opttype, err := g.GetDep().GetOption(fdep.FIELD_OPTION, opt.ParenthesizedName)
+	opttype, err := g.GetDep().GetAnyOption(opt.ParenthesizedName)
 	if err != nil {
 		return nil, err
 	}
@@ -530,7 +530,7 @@ func (c *Customizer_Validator) OptionGetValidator(g *fproto_gowrap.Generator, op
 
 // Checks if the option has a validator
 func (c *Customizer_Validator) OptionHasValidator(g *fproto_gowrap.Generator, opt *fproto.OptionElement) (bool, error) {
-	opttype, err := g.GetDep().GetOption(fdep.FIELD_OPTION, opt.ParenthesizedName)
+	opttype, err := g.GetDep().GetAnyOption(opt.ParenthesizedName)
 	if err != nil {
 		return false, err
 	}
